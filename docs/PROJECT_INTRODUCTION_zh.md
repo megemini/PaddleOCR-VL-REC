@@ -24,7 +24,7 @@ PaddleOCR-VL-Receipt是PaddleOCR-VL的微调版本，专门设计用于从收据
 
 1. **基础模型选择**：我们以PaddleOCR-VL-0.9B为基础，这是一个专为文档理解任务设计的视觉语言模型。
 
-2. **自定义数据集准备**：基于 [WildReceipt](https://aistudio.baidu.com/dataset/detail/129038/intro) 我们创建了专门的收据图像数据集，配有相应的JSON注释。数据以特定方式格式化，以教导模型响应自定义提示：
+2. **自定义数据集准备**：基于 [WildReceipt](https://download.openmmlab.com/mmocr/data/wildreceipt.tar) 我们创建了专门的收据图像数据集，配有相应的JSON注释。数据以特定方式格式化，以教导模型响应自定义提示：
 
    ```json
    {

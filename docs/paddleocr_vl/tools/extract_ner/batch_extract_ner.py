@@ -15,7 +15,7 @@ import argparse
 from extract_ner import MultimodalImageRecognizer
 
 
-def get_image_files(directory: str, extensions: List[str] = None) -> List[str]:
+def get_image_files(directory: str, extensions: List[str] | None = None) -> List[str]:
     """
     获取目录中的所有图片文件
 
@@ -101,7 +101,7 @@ def process_single_image(recognizer: MultimodalImageRecognizer, image_path: str,
         return False
 
 
-def batch_process_images(input_dir: str, output_dir: str = None) -> None:
+def batch_process_images(input_dir: str, output_dir: str | None = None) -> None:
     """
     批量处理图片
 
@@ -184,28 +184,14 @@ def find_deepest_folders(root_dir: str) -> List[str]:
 
 def main():
     """主函数"""
-    # parser = argparse.ArgumentParser(description='批量图片NER提取工具')
-    # parser.add_argument('input_dir', help='输入图片目录路径')
-    # parser.add_argument('-o', '--output', help='输出目录路径（可选）')
-
-    # args = parser.parse_args()
-
-    # input_dir = args.input_dir
-    # output_dir = args.output
-    # input_dir = '/media/shun/bigdata/Dataset/机动车发票/train'
-    # output_dir = '/media/shun/bigdata/Dataset/机动车发票/train_ner'
-
-    # input_dir = '/media/shun/bigdata/Dataset/增值税普通发票/zzsptfp'
-    # output_dir = '/media/shun/bigdata/Dataset/增值税普通发票/zzsptfp_ner'
-
-    # input_dir = '/media/shun/bigdata/Dataset/ocr/基于OCR的表单识别数据集/XFUND_ori/zh.train'
-    # output_dir = '/media/shun/bigdata/Dataset/ocr/基于OCR的表单识别数据集/XFUND_ori/zh.train_ner'
-
-    # input_dir = '/media/shun/bigdata/Dataset/ocr/基于OCR的表单识别数据集/XFUND_ori/zh.val'
-    # output_dir = '/media/shun/bigdata/Dataset/ocr/基于OCR的表单识别数据集/XFUND_ori/zh.val_ner'
+    # 解析命令行参数
+    parser = argparse.ArgumentParser(description='批量图片NER提取脚本')
+    parser.add_argument('--root_dir', type=str, required=True,
+                        help='根目录路径，包含要处理的图片文件夹')
+    args = parser.parse_args()
 
     # 设置根目录
-    root_dir = '/media/shun/bigdata/Dataset/ocr/DkbRrByl/wildreceipt/'
+    root_dir = args.root_dir
 
     # 验证根目录
     if not os.path.exists(root_dir):

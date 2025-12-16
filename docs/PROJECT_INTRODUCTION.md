@@ -24,7 +24,7 @@ The project was built through several key steps:
 
 1. **Base Model Selection**: We started with PaddleOCR-VL-0.9B as our foundation, a vision-language model specifically designed for document understanding tasks.
 
-2. **Custom Dataset Preparation**: Based on [WildReceipt](https://aistudio.baidu.com/dataset/detail/129038/intro),we created a specialized dataset of receipt images with corresponding JSON annotations. The data was formatted in a specific way to teach the model to respond to custom prompts:
+2. **Custom Dataset Preparation**: Based on [WildReceipt](https://download.openmmlab.com/mmocr/data/wildreceipt.tar),we created a specialized dataset of receipt images with corresponding JSON annotations. The data was formatted in a specific way to teach the model to respond to custom prompts:
 
    ```json
    {
