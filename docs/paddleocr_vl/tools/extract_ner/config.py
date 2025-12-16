@@ -15,9 +15,9 @@ class Config:
     """配置类"""
 
     # OpenAI API配置
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "292a9a1fd77e793cc795e91c02a18dd52b93ab5b")
-    OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "https://aistudio.baidu.com/llm/lmapi/v3")
-    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "ernie-5.0-thinking-preview")
+    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+    OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "")
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "")
 
     # 日志配置
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")
