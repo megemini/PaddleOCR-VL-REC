@@ -2,7 +2,7 @@
 
 This is a PaddleOCR-VL recognition script that retains only the core functionality of the VL recognition model from PaddleOCR.
 
-Additionally, it has been adapted for fine-tuned PaddleOCR-VL models [megemini/PaddleOCR-VL-Receipt](https://aistudio.baidu.com/modelsdetail/41446/intro) or [megemini/PaddleOCR-VL-Receipt](https://modelscope.cn/models/megemini/PaddleOCR-VL-Receipt/summary) , allowing recognition using custom prompt_label and query parameters.
+Additionally, it has been adapted for fine-tuned PaddleOCR-VL models [from AI Studio](https://aistudio.baidu.com/modelsdetail/41446/intro) or [from ModelScope](https://modelscope.cn/models/megemini/PaddleOCR-VL-Receipt/summary) , allowing recognition using custom prompt_label and query parameters.
 
 ## Recognition Results Display
 

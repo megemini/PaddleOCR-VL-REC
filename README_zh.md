@@ -2,7 +2,7 @@
 
 这是一个 PaddleOCR-VL 识别脚本，只保留了 PaddleOCR 中 VL 识别模型的核心功能。
 
-并且，针对微调的 PaddleOCR-VL 模型 [megemini/PaddleOCR-VL-Receipt](https://aistudio.baidu.com/modelsdetail/41446/intro) 或者 [megemini/PaddleOCR-VL-Receipt](https://modelscope.cn/models/megemini/PaddleOCR-VL-Receipt/summary) 进行了适配，可以使用自定义的 prompt_label 和 query 进行识别。
+并且，针对微调的 PaddleOCR-VL 模型 ([megemini/PaddleOCR-VL-Receipt AI Studio](https://aistudio.baidu.com/modelsdetail/41446/intro) 或者 [megemini/PaddleOCR-VL-Receipt Modelscope](https://modelscope.cn/models/megemini/PaddleOCR-VL-Receipt/summary)) 进行了适配，可以使用自定义的 prompt_label 和 query 进行识别。
 
 ## 识别效果展示
 
