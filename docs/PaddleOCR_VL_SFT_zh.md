@@ -4,7 +4,11 @@
 
 ## 引言
 
-当使用 PaddleOCR-VL 时，会使用到如下的代码:
+PaddleOCR-VL 是一款专为文档解析设计的视觉-语言模型（Vision-Language Model, VLM），在页面级文档解析和元素级识别方面都达到了SOTA性能。
+
+![paddleocr](./images/paddleocr.png)
+
+当使用 PaddleOCR-VL 时，可以通过提示词（Prompt）完成多种文档类型的理解任务，包括文本识别（OCR）、表格识别、公式识别和图表识别:
 
 ```python
 CHOSEN_TASK = "ocr"  # Options: 'ocr' | 'table' | 'chart' | 'formula'
@@ -16,128 +20,48 @@ PROMPTS = {
 }
 ```
 
-因此，PaddleOCR-VL 可以识别文本、公式、表格和图表元素。
+目前对于 PaddleOCR-VL 的微调 [PaddleOCR-VL-0.9B SFT](https://github.com/PaddlePaddle/ERNIE/blob/release/v1.4/docs/paddleocr_vl_sft_zh.md) 也是围绕这四类任务展开的，比如 [Fine-tuning PaddleOCR-VL for Manga](https://pfcc.blog/posts/paddleocr-vl-for-manga) 中介绍了如何微调模型使其在漫画文字的识别方面提高识别率。
 
-PaddleOCR-VL 作为一款专为文档理解设计的视觉-语言模型（Vision-Language Model, VLM），是通过 `提示词` 完成不同任务的。
+本文介绍一种新的微调方式，从微调 PaddleOCR-VL 的 `prompt` 入手，介绍如何通过微调 PaddleOCR-VL 用于 `信息抽取`。
 
-目前对于 PaddleOCR-VL 的微调 [PaddleOCR-VL-0.9B SFT](https://github.com/PaddlePaddle/ERNIE/blob/release/v1.4/docs/paddleocr_vl_sft_zh.md) 也是围绕这四类任务展开的。
+这里以一张收据为例：
 
-本文从微调 PaddleOCR-VL 的 `提示词` 入手，介绍如何通过微调 PaddleOCR-VL 用于 `信息抽取`。
+| 输入图片 | 微调前 (OCR 识别) | 微调后 (抽取特定信息) |
+|---------|---------|---------|
+| ![Receipt](./images/receipt.jpeg) | ![before](./images/receipt_paddleocr.png) | ![after](./images/receipt_extraction.png) |
 
-### 微调结果对比
+微调之后可以输出 `JSON` 格式的数据，并且可以根据不同的 `prompt` 抽取对应的信息。
 
-这里以识别与抽取一张发票内的信息为例：
-
-**微调之前**
-
-![raw](images/raw.png)
-
-<details>
-
-<summary> 点击查看原始输出 </summary>
+> 这里录制了一段简单的在 AI Studio 中 SFT 与推理过程的视频 [PaddleOCR-VL SFT with Prompt](https://www.bilibili.com/video/BV1cTq5BvEb2/?vd_source=52a02e4f0aa6b27776bd86a6d103f2d1)
 
 
-```json
-
-{
-    "res": {
-        "input_path": "/home/aistudio/paddleocr_vl/data/test.jpg",
-        "page_index": None,
-        "model_settings": {
-            "use_doc_preprocessor": False,
-            "use_layout_detection": False,
-            "use_chart_recognition": False,
-            "format_block_content": False
-        },
-        "parsing_res_list": [{
-            "block_label": "ocr",
-            "block_content": "购买方信息 | 名称 | 中青旅联科 | 杭州 | 公关顾问有限公司 | 销售方信息 | 名称 | 杭州万力酒店管理有限公司 | 统一社会信用代码/纳税人识别号 | 纳税人识别号 | 统一社会信用代码/纳税人识别号 | 税额 | 税额/征收率 | 税额/征收率\n**项目名称** | 规格型号 |   |   |   |   |   |   |   |   |   |   |   |  \n**住宿服务** | 住宿费 |   |   |   |   |   |   |   |   |   |   |   |  \n**合计** |   |   |   |   |   |   |   |   |   |   |   |   |  \n**价税合计（大写）** |   | 壹仟叁佰玖拾柒圆整 |   |   |   |   |   |   |   |   |   |   |  \n备注 | 销售方地址：浙江省杭州市西湖区转塘街道霞鸣街199号万美商务中心3号楼；电话：0571-85220222；销方开户银行：农行上泗支行；入住人：柳顺；入住日期：9月23日入住-9月26日退房；入住天数：3天；金额：1397元 |   |   |   |   |   |   |   |   |   |   |   |   |  \n开票人：祝营营",
-            "block_bbox": [0, 0, 1260, 838]
-        }]
-    }
-}
-
-```
-
-</details>
-
-**微调之后**
-
-![after](images/sft.png)
-
-<details>
-
-<summary> 点击查看微调之后的输出 </summary>
-
-```json
-{
-    "res": {
-        "input_path": "/home/aistudio/paddleocr_vl/data/test.jpg",
-        "page_index": None,
-        "model_settings": {
-            "use_doc_preprocessor": False,
-            "use_layout_detection": False,
-            "use_chart_recognition": False,
-            "format_block_content": False
-        },
-        "parsing_res_list": [{
-            "block_label": "OCR:{}",
-            "block_content": "{"发票信息": {"发票名称": "电子发票", "发票号码": "25332000000426443187", "开票日期": "2025年09月26日"}, "销售方信息": {"名称": "杭州万力酒店管理有限公司", "统一社会信用代码": "91330105MA2H2DUJ92", "纳税人识别号": "91330106MA2B1C4UXN"}, "项目名称": "规格型号", "单位": "个", "数量": "3 461.056105610561", "单价": "1383.17", "金额": "税率/征收率", "税额": "13.83"}, "合计": {"金额": "1383.17", "税额": "13.83"}, "价税合计（大写）": "壹仟叁佰玖拾柒圆整", "价税合计（小写）": "1397.00"}, "销售方地址": "浙江省杭州市西湖区转塘街道霞鸣街199号万美商务中心3号楼", "电话": "0571-85220222", "销方开户银行": "农行上泗支行", "入住人": "柳顺", "入住日期": "9月23日 入住-9月26日 退房", "入住天数": "3天", "金额": "1397元"},",
-            "block_bbox": [0, 0, 1260, 838]
-        }]
-    }
-}
-
-```
-
-或者指定字段抽取特定信息：
-
-``` json
-{
-    "res": {
-        "input_path": "/home/aistudio/paddleocr_vl/data/test.jpg",
-        "page_index": None,
-        "model_settings": {
-            "use_doc_preprocessor": False,
-            "use_layout_detection": False,
-            "use_chart_recognition": False,
-            "format_block_content": False
-        },
-        "parsing_res_list": [{
-            "block_label": "OCR:{"发票号码": "", "开票日期": ""}",
-            "block_content": "{"发票号码": "25332000000426443187", "开票日期": "2025年09月26日"}",
-            "block_bbox": [0, 0, 1260, 838]
-        }]
-    }
-}
-
-```
-
-</details>
-
-微调之后可以输出 `JSON` 格式的数据，并且可以根据不同的 `prompt`（这里的 `block_label`）输出对应的信息。
-
-> 由于此次微调的数据量很少，因此微调结果并不好，此处仅做参考。
-
-关于 PaddleOCR-VL 的微调，[PaddleOCR-VL-0.9B SFT](https://github.com/PaddlePaddle/ERNIE/blob/release/v1.4/docs/paddleocr_vl_sft_zh.md) 中已经有很详细的介绍，由于本文微调针对的是 `prompt`，因此在：
+关于 PaddleOCR-VL 的微调，[PaddleOCR-VL-0.9B SFT](https://github.com/PaddlePaddle/ERNIE/blob/release/v1.4/docs/paddleocr_vl_sft_zh.md) 中已经有很详细的讲解。针对 `prompt` 进行微调，以下部分略有不同：
 
 - 数据准备
 - 模型推理
 
-这两部分与原文略有不同。
-
 ## 数据准备
 
-使用 ERNIE 对 PaddleOCR-VL 进行微调，需要准备 `JSON` 格式的数据与对应的图片数据：
+本文使用的数据集为 [Spatial Dual-Modality Graph Reasoning for Key Information Extraction](https://arxiv.org/abs/2103.14470v1) 中介绍的数据集 [Wildreceipt dataset](https://download.openmmlab.com/mmocr/data/wildreceipt.tar) 。数据集中收集了 1768 张收据图片，比如：
+
+![Receipt](./images/receipt.jpeg)
+
+由于后续使用 [ERNIE](https://github.com/PaddlePaddle/ERNIE) 对 PaddleOCR-VL 进行微调，需要准备 `JSON` 格式的数据与对应的图片数据，以下是所需的数据格式：
 
 ```json
 {
-    "image_info": [
-        {"matched_text_index": 0, "image_url": "./assets/table_example.jps"},
-    ],
-    "text_info": [
-        {"text": "OCR:", "tag": "mask"},
-        {"text": "দডর মথ বধ বকসট একনজর দখই চনত পরল তর অনমন\nঠক পনতই লকয রখছ\nর নচ থকই চচয বলল কশর, “এইই; পযছ! পযছ!'\nওপর", "tag": "no_mask"},
+    "image_info": [{
+        "matched_text_index": 0,
+        "image_url": "./assets/table_example.jps"
+    }, ],
+    "text_info": [{
+            "text": "OCR:",
+            "tag": "mask"
+        },
+        {
+            "text": "দডর মথ বধ বকসট একনজর দখই চনত পরল তর অনমন\nঠক পনতই লকয রখছ\nর নচ থকই চচয বলল কশর, “এইই; পযছ! পযছ!'\nওপর",
+            "tag": "no_mask"
+        },
     ]
 }
 ```
@@ -163,53 +87,51 @@ PaddleOCR-VL 作为一款专为文档理解设计的视觉-语言模型（Vision
 
 ```json
 {
-    "image_info": [
-        {
-            "matched_text_index": 0,
-            "image_url": "/home/aistudio/paddleocr_vl/data/zzsptfp/zzsptfp/b175.jpg"
-        }
-    ],
-    "text_info": [
-        {
-            "text": "OCR:{\"发票名称\": \"\"}",
+    "image_info": [{
+        "matched_text_index": 0,
+        "image_url": "path/to/image.jpg"
+    }],
+    "text_info": [{
+            "text": "OCR:{\"RECEIPT NUMBER\": \"\"}",
             "tag": "mask"
         },
         {
-            "text": "{\"发票名称\": \"广东增值税专用发票\"}",
+            "text": "{\"RECEIPT NUMBER\": \"123456789\"}",
             "tag": "no_mask"
         }
     ]
 }
 ```
 
-这里 `tag` 为 `mask` 的 `text` 不是 `OCR:` 而是 `OCR:{\"发票名称\": \"\"}`，也就是说，我们希望模型抽取，且仅输出 `发票名称` 字段。
-
-保留原始的 `OCR:` 部分，是为了保证模型能够识别 `OCR:` 部分，而仅对 `{\"发票名称\": \"\"}` 部分进行微调。
+这里 `tag` 为 `mask` 的 `text` 不是 `OCR:` 而是 `OCR:{"RECEIPT NUMBER": ""}`，也就是说，我们希望模型抽取，且仅抽取 `RECEIPT NUMBER` 字段的信息，并输出对应的 `JSON` 格式的结果。保留原始的 `OCR:` 部分，是为了保证模型能够识别 `OCR:` 部分，而仅对 `{"RECEIPT NUMBER": ""}` 部分进行微调。
 
 `tag` 为 `no_mask` 的 `text` 部分直接输出 `JSON` 格式的数据，并且与 `prompt` 对应。
 
-最后，我们这里设计 `prompt` 为：
+针对不同的信息格式，我们这里设计 `prompt` 为：
 
-``` text
-# 特定值为字符串，如 `{"发票编码":"123456"}`
-"OCR:{\"xxx\":\"\"}"
+```text
+# 抽取全量信息
+OCR:{}
 
-# 特定值为字典，如 `{"购买方":{"名称":"A公司"}}`
-"OCR:{\"xxx\":{}}"
+# 抽取特定值为字符串，如 `{"NUMBER":"123456"}`
+OCR:{"FIELD":""}
 
-# 特定值为列表，如 `{"货物或应税劳务、服务名称":[{"名称":"A产品"},{"名称":"B产品"}]}`
-"OCR:{\"xxx\":[]}"
+# 抽取特定值为字典，如 `{"ITEM":{"NAME":"foo"}}`
+OCR:{"FIELD":{}}
+
+# 抽取特定值为列表，如 `{"ITMES":[{"NAME":"foo"},{"NAME":"bar"}]}`
+OCR:{"FIELD":[]}
 ```
 
-具体如何构建数据集，可以参考后续的附录部分。
+我们这里使用 VLM 模型 (ERNIE 4.5 VL) 对每张图片生成完整的 `JSON` 格式的数据，然后随机抽取部分字段组成训练数据，具体如何构建数据集，可以参考后续的附录部分。
 
 ## 模型微调
 
-微调的过程与 此 类似，首先安装 ERNIE：
+微调的过程与 [PaddleOCR-VL-0.9B SFT](https://github.com/PaddlePaddle/ERNIE/blob/release/v1.4/docs/paddleocr_vl_sft_zh.md) 类似，首先安装 ERNIE：
 
 ```bash
 cd paddleocr_vl
-git clone https://gitee.com/PaddlePaddle/ERNIE -b release/v1.4
+git clone https://github.com/PaddlePaddle/ERNIE -b release/v1.4
 cd ERNIE
 python -m pip install -r requirements/gpu/requirements.txt
 python -m pip install -e .
@@ -236,7 +158,7 @@ from modelscope import snapshot_download
 model_dir = snapshot_download('PaddlePaddle/PaddleOCR-VL', local_dir='paddleocr_vl/paddleocr_vl_model')
 ```
 
-最后，就是执行微调命令即可，在 AI Studio 的 A100 环境中进行微调，大约需要不到 1.5 小时。
+最后，就是执行微调命令即可，在 AI Studio 的 A800 环境中进行微调，大约需要不到 3 小时。
 
 > V100 环境无法执行微调，但是可以进行模型推理
 
@@ -247,19 +169,26 @@ cd paddleocr_vl/ERNIE; CUDA_VISIBLE_DEVICES=0 \
 
 以下是训练的日志：
 
-![logs](images/logs.png)
+![log](./images/log.png)
 
 可以看到，`loss` 在稳定的下降，说明微调应该有效果。
 
-
 ## 模型推理
 
-微调完成后，可以使用微调后的模型进行推理。模型可以：
+微调完成后，可以使用微调后的模型进行推理，并：
 
 1. 输出 `JSON` 格式的完整信息
 2. 根据不同的输入字段，输出对应的 `JSON` 格式的信息
 
 这为信息抽取任务提供了灵活的接口。
+
+这里介绍三种模型推理的方式：
+
+- [PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR)
+- [transformers](https://github.com/huggingface/transformers)
+- [PaddleOCR-VL-REC](https://github.com/megemini/PaddleOCR-VL-REC)
+
+### 使用 PaddleOCR 进行推理
 
 按照 [PaddleOCR-VL-0.9B SFT](https://github.com/PaddlePaddle/ERNIE/blob/release/v1.4/docs/paddleocr_vl_sft_zh.md) 进行推理，首先需要安装必要的环境
 
@@ -284,7 +213,7 @@ assert prompt_label.lower() in [
 
 ```
 
-这里写了一个 patch 脚本，可以绕过以上限制：
+这里写了一个 [patch 脚本](https://github.com/megemini/PaddleOCR-VL-REC/blob/master/docs/paddleocr_vl/patch/patch_assert_to_warning.py)，可以绕过以上限制：
 
 ```bash
 python paddleocr_vl/patch/patch_assert_to_warning.py
@@ -297,10 +226,10 @@ cp paddleocr_vl/paddleocr_vl_model/chat_template.jinja paddleocr_vl/PaddleOCR-VL
 cp paddleocr_vl/paddleocr_vl_model/inference.yml paddleocr_vl/PaddleOCR-VL-SFT
 ```
 
-这里使用一张新的发票数据来进行模型的验证。
+这里以上文中的那张收据来进行模型的验证。
 
 ```bash
-python -m paddleocr doc_parser -i paddleocr_vl/data/test.jpg \
+python -m paddleocr doc_parser -i /home/aistudio/paddleocr_vl/data/Image_1/0/1640.jpeg \
     --vl_rec_model_name "PaddleOCR-VL-0.9B" \
     --vl_rec_model_dir "paddleocr_vl/PaddleOCR-VL-SFT" \
     --save_path="paddleocr_vl/PaddleOCR-VL-SFT_response" \
@@ -312,43 +241,46 @@ python -m paddleocr doc_parser -i paddleocr_vl/data/test.jpg \
 
 ```json
 {
-    "res": {
-        "input_path": "/home/aistudio/paddleocr_vl/data/test.jpg",
-        "page_index": None,
-        "model_settings": {
-            "use_doc_preprocessor": False,
-            "use_layout_detection": False,
-            "use_chart_recognition": False,
-            "format_block_content": False
+    "RESTAURANT INFORMATION": {
+        "NAME": "Berghotel Grosse Scheidegg",
+        "ADDRESS": "3818 Grindelwald Familie R. Müller",
+        "PHONE": ""
+    },
+    "BILL INFORMATION": {
+        "BILL NUMBER": "4572",
+        "DATE": "30.07.2007",
+        "TIME": "13:29:17",
+        "TABLE NUMBER": "7/01"
+    },
+    "CONSUMPTION ITEMS": {
+        "2XLATTE MACCHIATO": {
+            "QUANTITY": "1",
+            "UNIT PRICE": "4.50",
+            "TOTAL PRICE": "9.00"
         },
-        "parsing_res_list": [{
-            "block_label": "OCR:{}",
-            "block_content": "{
-              "发票信息": {
-                  "发票名称": "电子发票",
-                  "发票号码": "25332000000426443187",
-                  "开票日期": "2025年09月26日"
-              },
-              "销售方信息": {
-                  "名称": "杭州万力酒店管理有限公司",
-                  "统一社会信用代码": "91330105MA2H2DUJ92",
-                  "纳税人识别号": "91330106MA2B1C4UXN"
-              },
-              "项目名称": "规格型号",
-              "单位": "个",
-              "数量": "3 461.056105610561",
-              "单价": "1383.17",
-              "金额": "税率/征收率",
-              "税额": "13.83"
-          }, "合计": {
-              "金额": "1383.17",
-              "税额": "13.83"
-          }, "价税合计（大写）": "壹仟叁佰玖拾柒圆整", "价税合计（小写）": "1397.00"
-          }, "销售方地址": "浙江省杭州市西湖区转塘街道霞鸣街199号万美商务中心3号楼", "电话": "0571-85220222", "销方开户银行": "农行上泗支行", "入住人": "柳顺", "入住日期": "9月23日 入住-9月26日 退房", "入住天数": "3天", "金额": "1397元"
-          }",
-            "block_bbox": [0, 0, 1260, 838]
-        }]
-    }
+        "1XGLOKI": {
+            "QUANTITY": "1",
+            "UNIT PRICE": "5.00",
+            "TOTAL PRICE": "5.00"
+        },
+        "1XSCHWEINSCHNITZEL": {
+            "QUANTITY": "1",
+            "UNIT PRICE": "22.00",
+            "TOTAL PRICE": "22.00"
+        },
+        "1XCHÄSSPÄTZLI": {
+            "QUANTITY": "1",
+            "UNIT PRICE": "18.50",
+            "TOTAL PRICE": "18.50"
+        }
+    },
+    "TOTAL": "54.50",
+    "CONSUMPTION TAX": "7.6% MwSt 54.50 CHF: 3.85",
+    "TAX RATE": "7.6% EUR",
+    "TAX AMOUNT": "36.33 EUR",
+    "SERVICE STAFF": "Ursula",
+    "CONTACT PHONE": "033 853 67 16",
+    "EMAIL": "grossescheidegg@bluewin.ch"
 }
 ```
 
@@ -357,86 +289,64 @@ python -m paddleocr doc_parser -i paddleocr_vl/data/test.jpg \
 - `use_layout_detection=False`，不通过 layout 模型，而是直接将图片送入 `PaddleOCR-VL-0.9B`
 - `prompt_label="OCR:{}"`，这里使用我们微调的 `prompt` ，希望模型输出完整的 json 格式的信息
 
-> 注意，这里模型最终输出的数据实际上不完整，比如，缺少 `购买方` 信息，应该是微调数据较少导致的。
-
-再来看看微调之前的模型，只能输出 table 样式的数据:
-
-```bash
-python -m paddleocr doc_parser -i /home/aistudio/paddleocr_vl/data/test.jpg \
-    --vl_rec_model_name "PaddleOCR-VL-0.9B" \
-    --vl_rec_model_dir "/home/aistudio/paddleocr_vl/paddleocr_vl_model" \
-    --save_path="/home/aistudio/paddleocr_vl/paddleocr_vl_model_response" \
-    --use_layout_detection=False \
-    --prompt_label="ocr"
-```
-
-输出：
-
-```json
-{
-    "res": {
-        "input_path": "/home/aistudio/paddleocr_vl/data/test.jpg",
-        "page_index": None,
-        "model_settings": {
-            "use_doc_preprocessor": False,
-            "use_layout_detection": False,
-            "use_chart_recognition": False,
-            "format_block_content": False
-        },
-        "parsing_res_list": [{
-            "block_label": "ocr",
-            "block_content": "购买方信息 | 名称 | 中青旅联科 | 杭州 | 公关顾问有限公司 | 销售方信息 | 名称 | 杭州万力酒店管理有限公司 | 统一社会信用代码/纳税人识别号 | 纳税人识别号 | 统一社会信用代码/纳税人识别号 | 税额 | 税额/征收率 | 税额/征收率\n**项目名称** | 规格型号 |   |   |   |   |   |   |   |   |   |   |   |  \n**住宿服务** | 住宿费 |   |   |   |   |   |   |   |   |   |   |   |  \n**合计** |   |   |   |   |   |   |   |   |   |   |   |   |  \n**价税合计（大写）** |   | 壹仟叁佰玖拾柒圆整 |   |   |   |   |   |   |   |   |   |   |  \n备注 | 销售方地址：浙江省杭州市西湖区转塘街道霞鸣街199号万美商务中心3号楼；电话：0571-85220222；销方开户银行：农行上泗支行；入住人：柳顺；入住日期：9月23日入住-9月26日退房；入住天数：3天；金额：1397元 |   |   |   |   |   |   |   |   |   |   |   |   |  \n开票人：祝营营",
-            "block_bbox": [0, 0, 1260, 838]
-        }]
-    }
-}
-```
-
 然后，测试一下只抽取部分信息：
 
 ```bash
-python -m paddleocr doc_parser -i /home/aistudio/paddleocr_vl/data/test.jpg \
+python -m paddleocr doc_parser -i /home/aistudio/paddleocr_vl/data/Image_1/0/1640.jpeg \
     --vl_rec_model_name "PaddleOCR-VL-0.9B" \
-    --vl_rec_model_dir "/home/aistudio/paddleocr_vl/PaddleOCR-VL-SFT" \
-    --save_path="/home/aistudio/paddleocr_vl/PaddleOCR-VL-SFT_response" \
+    --vl_rec_model_dir "paddleocr_vl/PaddleOCR-VL-SFT" \
+    --save_path="paddleocr_vl/PaddleOCR-VL-SFT_response" \
     --use_layout_detection=False \
-    --prompt_label="OCR:{\"购买方名称\": {}, \"销售方名称\": {}}"
+    --prompt_label="OCR:{\"NAME\":\"\", \"ITEMS\":[]}"
 ```
 
 输出：
 
 ```json
 {
-    "res": {
-        "input_path": "/home/aistudio/paddleocr_vl/data/test.jpg",
-        "page_index": None,
-        "model_settings": {
-            "use_doc_preprocessor": False,
-            "use_layout_detection": False,
-            "use_chart_recognition": False,
-            "format_block_content": False
-        },
-        "parsing_res_list": [{
-            "block_label": "OCR:{"购买方名称": {}, "销售方名称": {}}",
-            "block_content": "{
-                "购买方名称": {
-                    "名称": "中青旅联科（杭州）公关顾问有限公司",
-                    "统一社会信用代码": "91330105MA2H2DUJ92"
-                },
-                "销售方名称": {
-                    "名称": "杭州万力酒店管理有限公司",
-                    "统一社会信用代码": "91330106MA2B1C4UXN"
-                }
-            }",
-            "block_bbox": [0, 0, 1260, 838]
-        }]
-    }
-}
+    "NAME": "Berghotel Grosse Scheidegg",
+    "ITEMS": [{
+        "NAME": "2XLATTE MACCHIATO",
+        "QUANTITY": "1",
+        "UNIT PRICE": "4.50",
+        "TOTAL PRICE": "9.00"
+    }, {
+        "NAME": "1XGLOKI",
+        "QUANTITY": "1",
+        "UNIT PRICE": "5.00",
+        "TOTAL PRICE": "5.00"
+    }, {
+        "NAME": "1XSCHWEINSCHNITZEL",
+        "QUANTITY": "1",
+        "UNIT PRICE": "22.00",
+        "TOTAL PRICE": "22.00"
+    }, {
+        "NAME": "1XCHÄSSPÄTZLI",
+        "QUANTITY": "1",
+        "UNIT PRICE": "18.50",
+        "TOTAL PRICE": "18.50"
+    }],
+    "TOTAL": "54.50",
+    "CHF": "3.85",
+    "INCL.": "7.6% MwSt",
+    "CHF": "54.50",
+    "EUR": "36.33",
+    "ES BEDIENTE SIE": "Ursula",
+    "MWST NR.": "430 234",
+    "TEL.": "033 853 67 16",
+    "FAX.": "033 853 67 19",
+    "E-MAIL": "grossescheidegg@bluewin.ch"
+}]
 ```
 
 可以看到，模型基本上可以跟随我们的指令抽取对应的信息。
 
-## 使用 transformers 库进行信息抽取
+但是，仍然有一些瑕疵，比如：
+
+- 模型不仅抽取了 `NAME` 和 `ITEMS` 信息，还抽取了其他的几个字段信息，说明微调后的模型还是存在一些指令跟随的瑕疵，可以通过扩展数据集的数量加强训练来解决。
+- 模型输出的 `JSON` 格式不完整，这也是大模型的一个通病，有一些工具可以缓解此类问题，比如 [json_repair](https://github.com/mangiucugna/json_repair/)
+
+### 使用 transformers 进行推理
 
 可以使用 transformers 库进行信息抽取，参考 [[Model] Add PaddleOCR-VL Model Support by zhang-prog](https://github.com/huggingface/transformers/pull/42178)
 
@@ -453,7 +363,7 @@ messages = [
     {
         "role": "user",
         "content": [
-            {"type": "image", "url": "https://ai-studio-static-online.cdn.bcebos.com/dc31c334d4664ca4955aa47d8e202a53a276fd0aab0840b09abe953fe51207d0"},
+            {"type": "image", "url": "path/to/image.jpg"},
             {"type": "text", "text": "OCR:{}"},
         ]
     }
@@ -489,8 +399,8 @@ messages = [
     {
         "role": "user",
         "content": [
-            {"type": "image", "url": "https://ai-studio-static-online.cdn.bcebos.com/dc31c334d4664ca4955aa47d8e202a53a276fd0aab0840b09abe953fe51207d0"},
-            {"type": "text", "text": "OCR:{\"发票日期\": \"\"}"},
+            {"type": "image", "url": "path/to/image.jpg"},
+            {"type": "text", "text": "OCR:{\"NAME\": \"\"}"},
         ]
     }
 ]
@@ -508,7 +418,7 @@ print(result)
 
 ```
 
-## 使用 PaddleOCR-VL-REC 进行信息抽取
+### 使用 PaddleOCR-VL-REC 进行信息抽取
 
 可以使用 [PaddleOCR-VL-REC](https://github.com/megemini/PaddleOCR-VL-REC) 进行信息抽取：
 
@@ -531,10 +441,10 @@ result_json = recognizer.predict(
 print(type(result_json))  # <class 'dict'>
 print(result_json)
 
-# 使用 list 作为 query（会被转化为 {"item1":"", "item2":""} 的形式）
+# 使用 list 作为 query（会被转化为 {"ITEM1":"", "ITEM2":""} 的形式）
 result_json = recognizer.predict(
     image="/path/to/your/image.jpg",
-    query=["item1", "item2"],
+    query=["ITEM1", "ITEM2"],
     return_json=True
 )
 print(result_json)
@@ -543,13 +453,20 @@ recognizer.close()
 
 ```
 
+工具简化了 PaddleOCR 中对于 PaddleOCR-VL 模型的调用过程，跳过了 PP-DocLayoutV2 模型的预处理，直接使用 PaddleOCR-VL-0.9B 模型进行推理，并且，使用 [json_repair](https://github.com/mangiucugna/json_repair/) 对结果进行了修复，使用起来更简单。
+
+比如，使用 [PaddleOCR-VL-REC](https://github.com/megemini/PaddleOCR-VL-REC) 对上面的收据抽取部分信息，得到格式完整的 `JSON` 结果：
+
+![full](./images/receipt_extraction_full.png)
+
+![after](./images/receipt_extraction.png)
+
 ## 总结
 
 本文介绍了如何通过微调 PaddleOCR-VL 的提示词（prompt）来实现信息抽取任务。主要方法包括：
 
-1. **数据准备**：使用 VLM 模型生成结构化的训练数据，相比于传统标注方式更加高效。
-2. **提示词设计**：通过精心设计的提示词模板，让模型能够灵活地输出不同字段的 `JSON` 格式信息。
-3. **模型微调**：利用 PaddleOCR-VL 的微调能力，使其学会根据不同的提示词生成对应的输出。
+1. **提示词设计**：通过设计提示词模板，让模型能够灵活地输出不同字段的 `JSON` 格式信息。
+2. **模型微调**：利用 PaddleOCR-VL 的微调能力，使其学会根据不同的提示词生成对应的输出。
 
 这种方法相比于传统的信息抽取方法（如 NER + 关系抽取），具有更好的集成度和灵活性。
 
@@ -569,7 +486,7 @@ recognizer.close()
 
 前面提到，我们可以把 PaddleOCR-VL 当作 VLM 模型来使用，那么，我们可以让能力更强的 VLM 模型来 `教` PaddleOCR-VL 去识别 `购买方名称` 和 `销售方名称`。
 
-数据可以通过 `ernie-4.5-turbo-vl-preview` 模型来生成，参考脚本 `paddleocr_vl/tools/extract_ner/extract_ner.py`。
+数据可以通过 `ernie-4.5-turbo-vl-preview` 模型来生成，参考脚本 [extract_ner.py](https://github.com/megemini/PaddleOCR-VL-REC/blob/master/docs/paddleocr_vl/tools/extract_ner/extract_ner.py)。
 
 ``` python
 
@@ -667,7 +584,7 @@ class MultimodalImageRecognizer:
 ...
 ```
 
-使用 `paddleocr_vl/tools/extract_ner/batch_extract_ner.py` 脚本可以批量生成数据，最终生成的数据参考如下：
+使用 [batch_extract_ner.py](https://github.com/megemini/PaddleOCR-VL-REC/blob/master/docs/paddleocr_vl/tools/extract_ner/batch_extract_ner.py) 脚本可以批量生成数据，最终生成的数据参考如下：
 
 ``` json
 
@@ -735,33 +652,7 @@ class MultimodalImageRecognizer:
 
 ### 2. 提示词
 
-这里的 `信息抽取` 任务，目标是：
-
-- 模型可以输出 `JSON` 格式的完整信息
-- 模型可以根据不同的输入字段，输出对应的 `JSON` 格式的信息
-
-针对以上目标，这里设计了对应的提示词：
-
-**完整信息**
-
-```
-"OCR:{}"
-```
-
-**特定信息**
-
-```
-# 特定值为字符串，如 `{"发票编码":"123456"}`
-"OCR:{\"xxx\":\"\"}"
-
-# 特定值为字典，如 `{"购买方":{"名称":"A公司"}}`
-"OCR:{\"xxx\":{}}"
-
-# 特定值为列表，如 `{"货物或应税劳务、服务名称":[{"名称":"A产品"},{"名称":"B产品"}]}`
-"OCR:{\"xxx\":[]}"
-```
-
-可以使用 `paddleocr_vl/tools/process_ner_dataset.py` 生成完整的训练数据，包括随机生成的提示词：
+可以使用 [process_ner_dataset.py](https://github.com/megemini/PaddleOCR-VL-REC/blob/master/docs/paddleocr_vl/tools/process_ner_dataset.py) 生成完整的训练数据，包括随机生成的提示词：
 
 ```bash
 python paddleocr_vl/tools/process_ner_dataset.py paddleocr_vl/data/zzsptfp \
@@ -771,7 +662,7 @@ python paddleocr_vl/tools/process_ner_dataset.py paddleocr_vl/data/zzsptfp \
   -u /home/aistudio/paddleocr_vl/data/zzsptfp
 ```
 
-之后，拆分训练数据集与验证数据集：
+之后，[split_jsonl.py](https://github.com/megemini/PaddleOCR-VL-REC/blob/master/docs/paddleocr_vl/tools/split_jsonl.py) 拆分训练数据集与验证数据集：
 
 ```bash
 python paddleocr_vl/tools/split_jsonl.py paddleocr_vl/output.jsonl \
@@ -909,3 +800,11 @@ unified_checkpoint: True
 convert_from_hf: True
 save_to_hf: True
 ```
+
+### 4. 资源链接
+
+- AI Studio 项目地址：[微调 PaddleOCR-VL 新姿势 -- Prompt 与 信息抽取](https://aistudio.baidu.com/projectdetail/9857242) ，可在 AI Studio 的 A100 环境中直接运行（V100 环境只能进行模型推理，无法进行微调）
+- 模型地址：[megemini/PaddleOCR-VL-Receipt](https://modelscope.cn/models/megemini/PaddleOCR-VL-Receipt/summary)
+- 推理工具：[PaddleOCR-VL-REC](https://github.com/megemini/PaddleOCR-VL-REC)
+- 数据集：[Wildreceipt arxiv](https://arxiv.org/abs/2103.14470v1), [Wildreceipt dataset](https://download.openmmlab.com/mmocr/data/wildreceipt.tar)
+- SFT 过程视频：[PaddleOCR-VL SFT with Prompt](https://www.bilibili.com/video/BV1cTq5BvEb2/?vd_source=52a02e4f0aa6b27776bd86a6d103f2d1)
